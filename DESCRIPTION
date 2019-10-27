@@ -1,0 +1,39 @@
+Package: EFToolkit
+Type: Package
+Title: Election Forensics Toolkit
+Version: 0.1.0
+Author: Kirill Kalinin and Walter Mebane
+Maintainer: The package maintainer <kkalinin@umich.edu>
+Description: This package helps to implement election forensics analysis using various methods and estimators.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
+Imports:
+      stats,
+      methods,
+      xtable,
+      diptest,
+      doParallel,
+      digest,
+      graphics,
+      moments,
+      hwriter,
+      kableExtra,
+      boot,
+      sp,
+      XML,
+      foreign,
+      rgenoud,
+      rgdal,
+      RColorBrewer,
+      ggplot2,
+      spdep,
+      RANN,
+      foreach,
+      tmap
+Suggests: 
+      testthat (>= 2.1.0),
+      knitr,
+      rmarkdown
+VignetteBuilder: knitr
