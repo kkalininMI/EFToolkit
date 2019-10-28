@@ -34,8 +34,8 @@
 #'                              "Suraikin", "Titov", "Yavlinsky"),
 #'                     MainCandidate="P4",
 #'                     TotalReg="NVoters",
-#'                     Methodmax="M2",
-#'                     FigureName="Russian Presindential Elections, 2018",
+#'                     Methodmax="M1",
+#'                     FigureName="Russian Presidential Elections, 2018",
 #'                     Level="region",
 #'                     MaxtThreshold=0.85)
 
@@ -45,7 +45,6 @@
 ##  24oct2019 by Kirill Kalinin                           ##
 ##  Kirill Kalinin and Walter R. Mebane, Jr               ##
 ############################################################
-
 
 
 ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCandidate, TotalReg, Level = NULL,
@@ -138,7 +137,6 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
     magnitude.election.fraud<-
       sum(res_matrix[(round(max.peak.turnout * k1, 0)):101, mcandidateM], na.rm=TRUE) -
       sum(clean.votes.vector[(round(max.peak.turnout * k1, 0)):101], na.rm=TRUE)
-
 
     #Setting up the table
     colors_vector = grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]

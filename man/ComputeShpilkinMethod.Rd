@@ -53,8 +53,8 @@ res<-ComputeShpilkinMethod(dat, Candidates=c("P1", "P2",  "P3",  "P4", "P5", "P6
                              "Suraikin", "Titov", "Yavlinsky"),
                     MainCandidate="P4",
                     TotalReg="NVoters",
-                    Methodmax="M2",
-                    FigureName="Russian Presindential Elections, 2018",
+                    Methodmax="M1",
+                    FigureName="Russian Presidential Elections, 2018",
                     Level="region",
                     MaxtThreshold=0.85)
 }
