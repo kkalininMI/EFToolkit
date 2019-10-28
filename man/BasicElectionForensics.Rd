@@ -12,7 +12,7 @@ BasicElectionForensics(data, Candidates, Level,
 
 \item{Candidates}{variable name referring to vote counts for candidates/parties}
 
-\item{Level}{variable name depicting the level of analysis (whole dataset by default)}
+\item{Level}{variable name depicting the level of analysis ("National", i.e. whole dataset by default)}
 
 \item{TotalReg}{variable name for the total number of eligible voters}
 
