@@ -7,11 +7,11 @@
 #' @param CandidatesText vector of candidates/parties' names participated in the election used to draw the figure
 #' @param MainCandidate variable name for main/incumbent candidate
 #' @param TotalReg  variable name for the total number of eligible voters
-#' @param Level run algorithm for administrative subdivisions
+#' @param Level variable name depicting the level of analysis ("National", i.e. whole dataset by default)
 #' @param Methodmax clean peak search
 #' \itemize{
-#'   \item M1 - relative search on the left handside from official turnout within a range defined by WindowSize
-#'   \item M2 - absolute clean peak search on the left handside from official turnout
+#'   \item M1 - absolute clean peak search on the left handside from official turnout
+#'   \item M2 - relative search on the left handside from official turnout within a range defined by WindowSize
 #' }
 #' @param MaxtThreshold  anomalous turnout threshold (by default 0.8)
 #' @param WindowSize define WindowSize for M1.  Algorithm searches for max change within prespecified WindowSize (by default WindowSize=5\%)
@@ -46,184 +46,196 @@
 ##  Kirill Kalinin and Walter R. Mebane, Jr               ##
 ############################################################
 
-ComputeShpilkinMethod<-function(data, Candidates, CandidatesText=NULL, MainCandidate, TotalReg, Level=NULL,
-                         Methodmax="M1", MaxtThreshold=0.8, WindowSize=5, FigureName){
+
+
+ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCandidate, TotalReg, Level = NULL,
+                         Methodmax = "M1", MaxtThreshold = 0.8, WindowSize = 5, FigureName){
 
 
   estimate_fraud<-function(data,Candidates,CandidatesText, MainCandidate, TotalReg, Methodmax,
-                           FigureName, WindowSize, MaxtThreshold, whole.official.turnout=NULL){
+                           FigureName, WindowSize, MaxtThreshold, whole.official.turnout = NULL){
 
-    MainCandidate.v <- data[,names(data)%in%MainCandidate];
-    acandidates.v <- data[,names(data)%in%Candidates];
-    mcandidateM <- Candidates%in%MainCandidate
+    MainCandidate.v <- data[,names(data) %in% MainCandidate];
+    acandidates.v <- data[,names(data) %in% Candidates];
+    mcandidateM <- Candidates %in% MainCandidate
 
     if(is.null(CandidatesText)) CandidatesText<- Candidates
     ccandidate <- CandidatesText[mcandidateM]
 
-    valid.v <- apply(acandidates.v, 1, function(x) sum(x, na.rm=TRUE))
-    TotalReg.v <- data[,names(data)%in%TotalReg];
+    valid.v <- apply(acandidates.v, 1, function(x) sum(x, na.rm = TRUE))
+    TotalReg.v <- data[,names(data) %in% TotalReg];
     mdat <- data.frame(valid.v, MainCandidate.v,   TotalReg.v, acandidates.v)
-    turnout=mdat$valid.v/mdat$TotalReg.v
-    official.turnout=sum(mdat$valid.v, na.rm=TRUE)/sum(mdat$TotalReg.v,na.rm=TRUE)
-    incumbent.support=sum(mdat$MainCandidate.v , na.rm=TRUE)/sum(mdat$valid.v, na.rm=TRUE)
+    turnout = mdat$valid.v/mdat$TotalReg.v
+    official.turnout = sum(mdat$valid.v, na.rm = TRUE)/sum(mdat$TotalReg.v,na.rm = TRUE)
+    incumbent.support = sum(mdat$MainCandidate.v , na.rm = TRUE)/sum(mdat$valid.v, na.rm = TRUE)
 
-    i=0
+    i = 0
     ruler<-seq(0,1.01,.01)
     res_matrix<-matrix(NA,103,length(Candidates))
-    while(i<=102){
+    while(i <= 102){
       res_matrix[i+1,]<-sapply(1:length(Candidates), function(j) {
-        sum(mdat[,3+j][turnout>=ruler[i]&turnout<ruler[i+1]], na.rm=TRUE)})
-      i=i+1
+        sum(mdat[,3+j][turnout >= ruler[i]&turnout<ruler[i+1]], na.rm = TRUE)})
+      i = i+1
     }
-    res_matrix<-res_matrix[-103,]
+    #adjustment
+    res_matrix<-res_matrix[-c(1, 103),]; ruler = ruler[-101]
 
-    percentUR <- res_matrix[,mcandidateM]/apply(res_matrix,1,function(x) sum(x, na.rm=TRUE))
-    peakyL <- ruler[which(sign(diff(percentUR))==-1)]
-    peakyR <- ruler[which(sign(diff(percentUR))==1)]
+    percentUR <- res_matrix[,mcandidateM]/apply(res_matrix,1,function(x) sum(x, na.rm = TRUE))
+    peakyL <- ruler[which(sign(diff(percentUR)) == -1)]
+    peakyR <- ruler[which(sign(diff(percentUR)) == 1)]
     max.peaky <- which.max(apply(res_matrix,1,sum))/100
-    peaky <- c(peakyL[peakyL<=max.peaky], peakyR[peakyR>=max.peaky])
+    peaky <- c(peakyL[peakyL <= max.peaky], peakyR[peakyR >= max.peaky])
 
     stepp <- c(0,diff(peaky))
-    max_height <- res_matrix[which(ruler%in%peaky),1]
+    max_height <- res_matrix[which(ruler %in% peaky),1]
 
     peaks_matrix <- data.frame(peaky, stepp, max_height)
-    peaks_matrix_less <- peaks_matrix[peaky<official.turnout,]
+    peaks_matrix_less <- peaks_matrix[peaky < official.turnout,]
 
 
-    if(Methodmax=="M1"){
+    if(Methodmax == "M1"){
+      max.peak.turnout <- peaks_matrix_less$peaky[which.max(peaks_matrix_less$max_height)]
+    }
+
+    if(Methodmax == "M2"){
       i=0
       l=dim(peaks_matrix_less)[1]
 
-      if(length(peaks_matrix_less$peaky)<WindowSize){
-        WindowSize=length(peaks_matrix_less$peaky);
+      if(length(peaks_matrix_less$peaky) < WindowSize){
+        WindowSize = length(peaks_matrix_less$peaky);
         warning("adjusting for a Window size")}
 
-      while((l-i-WindowSize+1)>0){
-        selected = seq(l-i, l-i-WindowSize+1, -1)
-        if(any(peaks_matrix_less$stepp[selected]>0.01)){
-          o<-which.max(peaks_matrix_less$stepp[selected])
-          p<-o[length(o)]
-          k<-selected[p]
+      k <- which.max(peaks_matrix_less$max_height)
+
+      while((l - i - WindowSize + 1) > 0){
+        selected = seq(l - i, l - i - WindowSize + 1, -1)
+        if(any(peaks_matrix_less$stepp[selected] > 0.01)){
+          o <- which.max(peaks_matrix_less$stepp[selected])
+          p <- o[length(o)]
+          k <- selected[p]
           break
         }
-        i=i+1
+        i = i + 1
       }
       max.peak.turnout = peaks_matrix_less$peaky[k]
     }
 
-    if(Methodmax=="M2"){
-      max.peak.turnout <- peaks_matrix_less$peaky[which.max(peaks_matrix_less$max_height)]
-    }
+    if(official.turnout > MaxtThreshold & !is.null(whole.official.turnout)){
+                                            max.peak.turnout <- whole.official.turnout}
 
-    if(official.turnout>MaxtThreshold){max.peak.turnout <- whole.official.turnout}
-
-    mat100<-length(res_matrix[,1])
-    clean.votes <- res_matrix[which(ruler==max.peak.turnout),mcandidateM]
-    clean.valid.votes <- sum(res_matrix[which(ruler==max.peak.turnout),], na.rm=TRUE)
-    clean.all.butUR <- sum(res_matrix[which(ruler==max.peak.turnout), !mcandidateM], na.rm=TRUE)
+    mat100 <- length(res_matrix[,1])
+    clean.votes <- res_matrix[which(ruler == max.peak.turnout),mcandidateM]
+    clean.valid.votes <- sum(res_matrix[which(ruler == max.peak.turnout),], na.rm=TRUE)
+    clean.all.butUR <- sum(res_matrix[which(ruler == max.peak.turnout), !mcandidateM], na.rm=TRUE)
     clean.ur.prop <- clean.votes/clean.valid.votes
     clean.all.butUR.prop <- 1 - clean.ur.prop
-    inflation.factor<-clean.votes/clean.all.butUR
-    clean.votes.vector<-apply(res_matrix[,!mcandidateM],1,function(x) sum(x, na.rm=TRUE)) * inflation.factor
-    clean.votes.total<-sum(clean.votes.vector, na.rm=TRUE)
+    inflation.factor <- clean.votes / clean.all.butUR
+    clean.votes.vector <- apply(res_matrix[, !mcandidateM],1,function(x) sum(x, na.rm=TRUE)) * inflation.factor
+    clean.votes.total <- sum(clean.votes.vector, na.rm=TRUE)
 
-    if (max.peak.turnout>1){k1=1}else{k1=100}
+    if (max.peak.turnout > 1){k1 = 1}else{k1 = 100}
 
     magnitude.election.fraud<-
-      sum(res_matrix[(max.peak.turnout*k1):102, mcandidateM], na.rm=TRUE) -
-      sum(clean.votes.vector[(max.peak.turnout*k1):102], na.rm=TRUE)
+      sum(res_matrix[(round(max.peak.turnout * k1, 0)):101, mcandidateM], na.rm=TRUE) -
+      sum(clean.votes.vector[(round(max.peak.turnout * k1, 0)):101], na.rm=TRUE)
 
-    magnitude.election.fraud2 <- sum(mdat$MainCandidate.v, na.rm=TRUE) -
-      (max.peak.turnout*sum(mdat$MainCandidate.v, na.rm=TRUE))/official.turnout
 
     #Setting up the table
     colors_vector = grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]
     colors <- sample(colors_vector,  dim(res_matrix)[2])
     colors[mcandidateM] <- "chartreuse4"
     colors <- c("grey", colors)
-    colV<-as.vector(matrix(rep(colors,each=mat100),nrow=mat100))
+    colV <- as.vector(matrix(rep(colors,each = mat100),nrow = mat100))
 
     #party vector
-    if(length(clean.votes.vector)==0){clean.votes.vector=0}
-    ggparties<-cbind(clean.votes.vector, res_matrix)
-    votV<-as.vector(as.matrix(ggparties))
+    if(length(clean.votes.vector) == 0){clean.votes.vector = 0}
+    ggparties <- cbind(clean.votes.vector, res_matrix)
+    votV <- as.vector(as.matrix(ggparties))
 
-    rulV<-rep(ruler*100, times=dim(ggparties)[2])
+    rulV <- rep(ruler*100, times = dim(ggparties)[2])
 
-    namV<-as.vector(matrix(rep(c("Clean votes", paste("P/C: ", CandidatesText, sep="")),each=mat100),nrow=mat100))
+    namV <- as.vector(
+                    matrix(rep(c("Clean votes", paste("P/C: ", CandidatesText, sep = "")),
+                               each = mat100),nrow = mat100))
     #CI
-    u<-ifelse(namV=="Clean votes", votV, NA)
-    l<-ifelse(namV==paste("P/C: ", ccandidate, sep=""), votV, NA);
-    lna<-rep(NA,length(namV)); lna[1:102]<-l[!is.na(l)]
-    l<-lna
+    u <- ifelse(namV == "Clean votes", votV, NA)
+    l <- ifelse(namV == paste("P/C: ", ccandidate, sep = ""), votV, NA);
+    lna <- rep(NA,length(namV)); lna[1:101] <- l[!is.na(l)]
+    l <- lna
 
-    ggdata<-data.frame(namV, rulV, colV, votV, u, l)
-    o.turnout<-round(official.turnout*100,digits=1)
-    r.turnout<-round(max.peak.turnout*100,digits=1)
-    o.turnout.lab <- paste("Official turnout: ", round(o.turnout,digits=1), "%", sep="")
-    r.turnout.lab <- paste("Real turnout: ", round(r.turnout,digits=1), "%", sep="")
-    m1.fraud.lab <- paste("Fraud: ", round(magnitude.election.fraud, 0),
-                          " out of ", sum(mdat$MainCandidate.v), " votes ", sep="")
-    m2.fraud.lab <- paste("Fraud: ", round(magnitude.election.fraud2, 0),
-                          " out of ", sum(mdat$MainCandidate.v), " votes ", sep="")
+    ggdata <- data.frame(namV, rulV, colV, votV, u, l)
+    o.turnout <- round(official.turnout*100,digits = 1)
+    r.turnout <- round(max.peak.turnout*100,digits = 1)
+    o.turnout.lab <- paste("Official turnout: ", round(o.turnout,digits = 1), "%", sep = "")
+    r.turnout.lab <- paste("Real turnout: ", round(r.turnout,digits = 1), "%", sep = "")
+    m.fraud.lab <- paste("Fraud: ", round(magnitude.election.fraud, 0),
+                          " out of ", sum(mdat$MainCandidate.v), " votes ", sep = "")
 
     drawfig <- ggplot(ggdata, aes(x = rulV, y = votV, color = namV, group = namV)) +
-      scale_x_discrete(limits=seq(0,100,10)) +
-      theme_bw()+
-      geom_vline(aes(xintercept=o.turnout), color="blue", linetype="dashed", size=1, show.legend = F) +
-      geom_vline(aes(xintercept=r.turnout), color="grey", linetype="dashed", size=1, show.legend = F) +
-      geom_line(size=2) +
-      geom_ribbon(aes(ymin=l,ymax=u), fill="grey", alpha=0.5, show.legend = F, color = NA)+
+      scale_x_discrete(limits = seq(0,100,10)) +
+      theme_bw() +
+      geom_vline(aes(xintercept = o.turnout), color="blue", linetype="dashed", size = 1, show.legend = F) +
+      geom_vline(aes(xintercept = r.turnout), color="grey", linetype="dashed", size = 1, show.legend = F) +
+      geom_line(size = 2) +
+      geom_ribbon(aes(ymin = l,ymax = u), fill = "grey", alpha = 0.5, show.legend = F, color = NA)+
       theme(legend.title = element_blank(),
-            legend.text = element_text(size=10),
+            legend.text = element_text(size = 10),
             legend.key = element_blank(),
-            legend.background=element_blank()) +
+            legend.background = element_blank()) +
       labs(title = FigureName,
-           y="Number of Votes", x = "Turnout") +
+           y = "Number of Votes", x = "Turnout") +
       theme(plot.title = element_text(hjust = 0.5)) +
       labs(caption = paste(o.turnout.lab,"\n",
                            r.turnout.lab,"\n",
-                           m1.fraud.lab,"\n",
-                           m2.fraud.lab, sep=""))
+                           m.fraud.lab, sep = ""))
 
     official_turnout <- o.turnout
     real_turnout <- r.turnout
-    fraud_measure1 <- round(magnitude.election.fraud, 0)
-    fraud_measure2 <- round(magnitude.election.fraud2, 0)
+    fraud_measure <- round(magnitude.election.fraud, 0)
     votes_incumbent <- sum(mdat$MainCandidate.v)
 
-    results <- list(official_turnout=official_turnout, real_turnout=real_turnout,
-                    fraud_measure1=fraud_measure1, fraud_measure2=fraud_measure2,
-                    votes_incumbent=votes_incumbent, drawfig=drawfig)
+    results <- list(official_turnout = official_turnout, real_turnout = real_turnout,
+                    fraud_measure = fraud_measure,
+                    votes_incumbent = votes_incumbent, drawfig = drawfig)
     return(results)}
+
 
   gresults <- list()
 
   if(!is.null(Level)){
-    gresults[['Whole dataset']] <- estimate_fraud(data,Candidates,CandidatesText, MainCandidate, TotalReg, Methodmax,
+    gresults[['Whole dataset']] <- estimate_fraud(data,Candidates,CandidatesText,
+                                                  MainCandidate, TotalReg, Methodmax,
                                                   FigureName, WindowSize, MaxtThreshold)
 
     whole.official.turnout <- gresults[['Whole dataset']]$official_turnout/100
 
-    splby <- data[,names(data)%in%Level]
-    mdat <- split(data, splby)
+    if(Level!="National"){
+      splby <- data[,names(data)%in%Level]
+      mdat <- split(data, splby)
 
-    for(i in 1:length(names(mdat))){
-      mitem<- mdat[[i]]
-      FigureName <- names(mdat)[i]
-      gresults[[FigureName]] <- estimate_fraud(mitem,Candidates,CandidatesText, MainCandidate, TotalReg, Methodmax,
-                                                FigureName, WindowSize=5,
-                                                whole.official.turnout = whole.official.turnout, MaxtThreshold)
-    }
+      for(i in 1:length(names(mdat))){
+        mitem <- mdat[[i]]
+        FigureName <- names(mdat)[i]
+        gresults[[FigureName]] <- estimate_fraud(mitem,Candidates,CandidatesText,
+                                                 MainCandidate, TotalReg, Methodmax,
+                                                 FigureName, WindowSize = 5,
+                                                 whole.official.turnout = whole.official.turnout,
+                                                 MaxtThreshold)
+      }
+      }
 
-  }else{
-    gresults[['Whole dataset']] <- estimate_fraud(data,Candidates,CandidatesText, MainCandidate, TotalReg, Methodmax,
-                                                  FigureName, WindowSize, MaxtThreshold)
-  }
+    }else{
 
+      gresults[['Whole dataset']] <- estimate_fraud(data,Candidates,CandidatesText,
+                                                    MainCandidate, TotalReg, Methodmax,
+                                                    FigureName, WindowSize, MaxtThreshold)
+      }
 
-  list_graphs <- lapply(gresults, function(x) x[[6]])
-  stats_table <- do.call(rbind.data.frame,  lapply(gresults, function(x) x[1:5]))
+  lst_lngth <- length(gresults[[1]])
+  list_graphs  <-  lapply(gresults, function(x) x[[lst_lngth]])
+  stats_table  <-  do.call(rbind.data.frame,
+                         lapply(gresults, function(x) x[1:(lst_lngth-1)]))
 
-  list_results <- list(list_graphs=list_graphs, stats_table=stats_table, Level=Level, creationdate=Sys.time())
+  list_results <- list(list_graphs = list_graphs, stats_table = stats_table,
+                       Level = Level, creationdate = Sys.time())
 }

@@ -18,12 +18,12 @@ ComputeShpilkinMethod(data, Candidates, CandidatesText=NULL, MainCandidate, Tota
 
 \item{TotalReg}{variable name for the total number of eligible voters}
 
-\item{Level}{run algorithm for administrative subdivisions}
+\item{Level}{variable name depicting the level of analysis ("National", i.e. whole dataset by default)}
 
 \item{Methodmax}{clean peak search
 \itemize{
-  \item M1 - relative search on the left handside from official turnout within a range defined by WindowSize
-  \item M2 - absolute clean peak search on the left handside from official turnout
+  \item M1 - absolute clean peak search on the left handside from official turnout
+  \item M2 - relative search on the left handside from official turnout within a range defined by WindowSize
 }}
 
 \item{MaxtThreshold}{anomalous turnout threshold (by default 0.8)}

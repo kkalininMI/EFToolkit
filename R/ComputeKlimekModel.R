@@ -3,7 +3,7 @@
 #' @usage ComputeKlimekModel(data, Candidates, Level, TotalReg, TotalVotes, R=1000, cores=2)
 #' @param data data frame
 #' @param Candidates variable name referring to vote counts for candidates/parties
-#' @param Level variable name depicting the level of analysis (whole dataset by default)
+#' @param Level variable name depicting the level of analysis ("National", i.e. whole dataset by default)
 #' @param TotalReg variable name for the total number of eligible voters
 #' @param TotalVotes  variable name for the total number of ballots cast
 #' @param R number of simulations (1000  simulations by default)

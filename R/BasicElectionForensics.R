@@ -60,7 +60,7 @@
 ##  25sep2015, 24oct2019                                  ##
 ##  Kirill Kalinin and Walter R. Mebane, Jr               ##
 ############################################################
-BasicElectionForensics<-function(data, Candidates, Level, TotalReg, TotalVotes, Methods, R=1000, cores=2){
+BasicElectionForensics<-function(data, Candidates, Level="National", TotalReg, TotalVotes, Methods, R=1000, cores=2){
 
   closeAllConnections()
 
