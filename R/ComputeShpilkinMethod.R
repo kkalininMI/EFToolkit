@@ -40,6 +40,7 @@
 #'                     MaxtThreshold=0.85)
 
 
+
 ############################################################
 ##               Election Forensics Toolkit               ##
 ##  24oct2019 by Kirill Kalinin                           ##
@@ -52,7 +53,7 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
 
 
   estimate_fraud<-function(data,Candidates,CandidatesText, MainCandidate, TotalReg, Methodmax,
-                           FigureName, WindowSize, MaxtThreshold, whole.official.turnout = NULL){
+                           FigureName, WindowSize, MaxtThreshold, whole.real.turnout = NULL){
 
     MainCandidate.v <- data[,names(data) %in% MainCandidate];
     acandidates.v <- data[,names(data) %in% Candidates];
@@ -74,7 +75,7 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
     while(i <= 102){
       res_matrix[i+1,]<-sapply(1:length(Candidates), function(j) {
         sum(mdat[,3+j][turnout >= ruler[i]&turnout<ruler[i+1]], na.rm = TRUE)})
-      i = i+1
+      i = i + 1
     }
     #adjustment
     res_matrix<-res_matrix[-c(1, 103),]; ruler = ruler[-101]
@@ -119,8 +120,8 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
       max.peak.turnout = peaks_matrix_less$peaky[k]
     }
 
-    if(official.turnout > MaxtThreshold & !is.null(whole.official.turnout)){
-                                            max.peak.turnout <- whole.official.turnout}
+    if(official.turnout > MaxtThreshold & !is.null(whole.real.turnout)){
+                                            max.peak.turnout <- whole.real.turnout}
 
     mat100 <- length(res_matrix[,1])
     clean.votes <- res_matrix[which(ruler == max.peak.turnout),mcandidateM]
@@ -135,8 +136,14 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
     if (max.peak.turnout > 1){k1 = 1}else{k1 = 100}
 
     magnitude.election.fraud<-
-      sum(res_matrix[(round(max.peak.turnout * k1, 0)):101, mcandidateM], na.rm=TRUE) -
-      sum(clean.votes.vector[(round(max.peak.turnout * k1, 0)):101], na.rm=TRUE)
+      sum(res_matrix[(round(max.peak.turnout * k1 + 1, 0)):101, mcandidateM], na.rm=TRUE) -
+      sum(clean.votes.vector[(round(max.peak.turnout * k1 + 1, 0)):101], na.rm=TRUE)
+
+    realURsupport <- round(percentUR[round(max.peak.turnout * k1, 0) + 1]*100, 0)
+
+    ballot_stuffing <- round((official.turnout - max.peak.turnout) * sum(mdat$TotalReg.v,na.rm = TRUE), 0)
+    if(ballot_stuffing > magnitude.election.fraud){ballot_stuffing <- round(magnitude.election.fraud, 0)}
+    ballot_switching <- round((magnitude.election.fraud - ballot_stuffing) / 2, 0)
 
     #Setting up the table
     colors_vector = grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]
@@ -164,10 +171,15 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
     ggdata <- data.frame(namV, rulV, colV, votV, u, l)
     o.turnout <- round(official.turnout*100,digits = 1)
     r.turnout <- round(max.peak.turnout*100,digits = 1)
-    o.turnout.lab <- paste("Official turnout: ", round(o.turnout,digits = 1), "%", sep = "")
-    r.turnout.lab <- paste("Real turnout: ", round(r.turnout,digits = 1), "%", sep = "")
-    m.fraud.lab <- paste("Fraud: ", round(magnitude.election.fraud, 0),
-                          " out of ", sum(mdat$MainCandidate.v), " votes ", sep = "")
+    turnout.info <- paste("Official turnout: ",
+                          round(o.turnout,digits = 1), "%",
+                          "   Real turnout: ",
+                          round(r.turnout,digits = 1), "%", sep = "")
+    support.info <- paste("Official support: ",
+                          round(incumbent.support * 100, 1), "%",
+                          "   Real support: ",
+                          round(realURsupport, digits = 1), "%", sep = "")
+    m.fraud.info <- paste("Fraud: ", round(magnitude.election.fraud, 0), sep = "")
 
     drawfig <- ggplot(ggdata, aes(x = rulV, y = votV, color = namV, group = namV)) +
       scale_x_discrete(limits = seq(0,100,10)) +
@@ -183,20 +195,18 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
       labs(title = FigureName,
            y = "Number of Votes", x = "Turnout") +
       theme(plot.title = element_text(hjust = 0.5)) +
-      labs(caption = paste(o.turnout.lab,"\n",
-                           r.turnout.lab,"\n",
-                           m.fraud.lab, sep = ""))
+      labs(caption = paste("\n", turnout.info,"\n",
+                           support.info,"\n",
+                           m.fraud.info, sep = ""))
 
-    official_turnout <- o.turnout
-    real_turnout <- r.turnout
     fraud_measure <- round(magnitude.election.fraud, 0)
     votes_incumbent <- sum(mdat$MainCandidate.v)
 
-    results <- list(official_turnout = official_turnout, real_turnout = real_turnout,
-                    fraud_measure = fraud_measure,
-                    votes_incumbent = votes_incumbent, drawfig = drawfig)
+    results <- list(official_turnout = o.turnout, real_turnout = r.turnout,
+                    official_support = round(incumbent.support*100, 1), real_support = round(realURsupport, 1),
+                    ballot_stuffing = ballot_stuffing, ballot_switching = ballot_switching,
+                    total_fraud = fraud_measure, drawfig = drawfig)
     return(results)}
-
 
   gresults <- list()
 
@@ -205,7 +215,7 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
                                                   MainCandidate, TotalReg, Methodmax,
                                                   FigureName, WindowSize, MaxtThreshold)
 
-    whole.official.turnout <- gresults[['Whole dataset']]$official_turnout/100
+    whole.real.turnout <- gresults[['Whole dataset']]$real_turnout/100
 
     if(Level!="National"){
       splby <- data[,names(data)%in%Level]
@@ -217,7 +227,7 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL, MainCan
         gresults[[FigureName]] <- estimate_fraud(mitem,Candidates,CandidatesText,
                                                  MainCandidate, TotalReg, Methodmax,
                                                  FigureName, WindowSize = 5,
-                                                 whole.official.turnout = whole.official.turnout,
+                                                 whole.real.turnout = whole.real.turnout,
                                                  MaxtThreshold)
       }
       }
