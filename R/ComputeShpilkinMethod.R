@@ -23,9 +23,11 @@
 #' @return list containing results of analysis
 #' \itemize{
 #'   \item list_graphs - list of graphs
-#'   \item stats_table -  table with results
+#'   \item stats_summary -  table with results for analysis of the whole dataset (for Level!=NULL: data are also
+#'                          summed across the units, aggregation error is computed)
 #'   \item Level -  external parameter
 #'   \item creationdate - date/time of analysis
+#'   list_graphs = list_graphs, stats_summary = stats_table, stats_level=stats_level
 #' }
 #' @examples
 #' library(EFToolkit)
@@ -43,10 +45,9 @@
 #'                     MaxtThreshold=0.85)
 
 
-
 ############################################################
 ##               Election Forensics Toolkit               ##
-##  24oct2019 by Kirill Kalinin                           ##
+##  24oct2019, 2nov2019 by Kirill Kalinin                 ##
 ##  Kirill Kalinin and Walter R. Mebane, Jr               ##
 ############################################################
 
@@ -288,6 +289,21 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL,
   stats_table  <-  do.call(rbind.data.frame,
                            lapply(gresults, function(x) x[1:(lst_lngth - 1)]))
 
-  list_results <- list(list_graphs = list_graphs, stats_table = stats_table,
+
+  if (!is.null(Level)) {
+    stats_level <- stats_table[-1, ]
+    stats_whole <- stats_table[1, ]
+    stats_agg_level <- c(apply(stats_level[, 1:4], 2, function(x) round(mean(x, na.rm=TRUE), 1)),
+                         apply(stats_level[, 5:7], 2, function(x) round(sum(x, na.rm=TRUE), 1)))
+
+    diff_whole_agg <- stats_whole-stats_agg_level
+    stats_table <- rbind(stats_whole, stats_agg_level, diff_whole_agg)
+    rownames(stats_table) <- c("stats with whole data", "stats aggregated from level", "aggregation error")
+
+    }else{
+    stats_level <- NULL
+    }
+
+  list_results <- list(list_graphs = list_graphs, stats_summary = stats_table, stats_level=stats_level,
                        Level = Level, creationdate = Sys.time())
 }

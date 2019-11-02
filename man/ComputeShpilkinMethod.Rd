@@ -40,9 +40,11 @@ ComputeShpilkinMethod(data, Candidates, CandidatesText = NULL, MainCandidate, To
 list containing results of analysis
 \itemize{
   \item list_graphs - list of graphs
-  \item stats_table -  table with results
+  \item stats_summary -  table with results for analysis of the whole dataset (for Level!=NULL: data are also
+                         summed across the units, aggregation error is computed)
   \item Level -  external parameter
   \item creationdate - date/time of analysis
+  list_graphs = list_graphs, stats_summary = stats_table, stats_level=stats_level
 }
 }
 \description{
