@@ -24,11 +24,12 @@ ComputeShpilkinMethod(data, Candidates, CandidatesText = NULL, MainCandidate, To
 
 \item{Methodmax}{clean peak search
 \itemize{
-  \item M1 - absolute clean peak search on the left handside from official turnout
+  \item M0 - absolute clean peak search on the left handside from official turnout
+  \item M1 - absolute clean peak search on the left handside from official turnout with k-means clustering
   \item M2 - relative search on the left handside from official turnout within a range defined by WindowSize
 }}
 
-\item{WindowSize}{define WindowSize for M1.  Algorithm searches for max value change within prespecified WindowSize (by default WindowSize=5\%)}
+\item{WindowSize}{define WindowSize for M0 and M1.  Algorithm searches for max value change within prespecified WindowSize (by default WindowSize=5\%)}
 
 \item{MaxtThreshold}{anomalous turnout threshold (by default 0.8)}
 

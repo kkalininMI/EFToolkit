@@ -4,7 +4,9 @@
 \name{Albania2013}
 \alias{Albania2013}
 \title{Albania data}
-\format{csv, shp, dbf, shx, prj}
+\format{
+csv, shp, dbf, shx, prj
+}
 \description{
 Electoral data: Albania2013.csv (parliament); Geodata: Albania2013_communes, Albania2013_prefectures (.shp, .dbf, .shx, .prj)
 }

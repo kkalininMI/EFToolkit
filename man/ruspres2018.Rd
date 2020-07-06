@@ -4,7 +4,9 @@
 \name{ruspres2018}
 \alias{ruspres2018}
 \title{Russian electoral data}
-\format{csv}
+\format{
+csv
+}
 \description{
 Russia electoral data collected from 2018 Russian presidential elections
 }
