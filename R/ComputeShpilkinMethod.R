@@ -12,8 +12,9 @@
 #' @param Methodmax clean peak search
 #' \itemize{
 #'   \item M0 - absolute clean peak search on the left handside from official turnout
-#'   \item M1 - absolute clean peak search on the left handside from official turnout with k-means clustering
-#'   \item M2 - relative search on the left handside from official turnout within a range defined by WindowSize
+#'   \item M1 - absolute clean peak search on the left handside from official turnout with k-means clustering (k=2) (the first leftmost peak in the middle cluster)
+#'   \item M2 - absolute clean peak search on the left handside from official turnout with k-means clustering (k=3) (the highest peak in the middle cluster)
+#'   \item M3 - relative search on the left handside from official turnout within a range defined by WindowSize
 #' }
 #' @param WindowSize define WindowSize for M0 and M1.  Algorithm searches for max value change within prespecified WindowSize (by default WindowSize=5\%)
 #' @param MaxtThreshold  anomalous turnout threshold (by default 0.8)
@@ -107,33 +108,44 @@ ComputeShpilkinMethod<-function(data, Candidates, CandidatesText = NULL,
 
     percentMainCandidateSupport <-  mcandidate100 / valid100
 
+    peaky <- ruler[!is.na(percentMainCandidateSupport)]
+    max_height <-   mcandidate100[which(ruler %in% peaky)]
+    peaks_matrix <- data.frame(peaky, max_height)
+    peaks_matrix_less <- peaks_matrix[peaky < official.turnout,]
+
     if(Methodmax == "M0"){
-      peaky <- ruler[!is.na(percentMainCandidateSupport)]
-      max_height <-   mcandidate100[which(ruler %in% peaky)]
-      peaks_matrix <- data.frame(peaky, max_height)
-      peaks_matrix_less <- peaks_matrix[peaky < official.turnout,]
       max.peak.turnout <- peaks_matrix_less$peaky[which.max(peaks_matrix_less$max_height)]
     }
 
-    if(Methodmax == "M1"){
-      peaky <- ruler[!is.na(percentMainCandidateSupport)]
-      max_height <-   mcandidate100[which(ruler %in% peaky)]
-      peaks_matrix <- data.frame(peaky, max_height)
-      peaks_matrix_less <- peaks_matrix[peaky < official.turnout,]
+    if(Methodmax == "M1"|Methodmax == "M2"){
       peaks.v<-peaks_matrix_less$peaky[which(sign(diff(peaks_matrix_less$max_height))==-1)]
 
-      if(length(peaks.v)<3){
+      if(length(peaks.v)<=3){
         max.peak.turnout <- peaks_matrix_less$peaky[which.max(peaks_matrix_less$max_height)]
       }else{
-        cl.fit <- kmeans(peaks.v, 2)
-        max.peak.turnout<-peaks.v[cl.fit$cluster==median(cl.fit$cluster)][1]
+        if(Methodmax == "M1"){
+          cl.fit <- kmeans(peaks.v, 2)}else{
+            cl.fit <- kmeans(peaks.v, 3)}
+
+        med.cluster<-peaks.v[cl.fit$cluster==median(cl.fit$cluster)]
+
+        if(Methodmax == "M1"){
+          max.peak.turnout<-peaks.v[cl.fit$cluster==median(cl.fit$cluster)][1]
+        }else{
+          max.peak.turnout<-med.cluster[which.max(mcandidate100[med.cluster*100+1])]
+        }
       }
+
+      if (length(max.peak.turnout)==0){
+        max.peak.turnout <- peaks_matrix_less$peaky[which.max(peaks_matrix_less$max_height)]
+      }
+
       if (is.na(max.peak.turnout)){
         max.peak.turnout <- peaks_matrix_less$peaky[which.max(peaks_matrix_less$max_height)]
       }
     }
 
-    if(Methodmax == "M2"){
+    if(Methodmax == "M4"){
       peaky <- ruler[which(sign(diff(percentMainCandidateSupport)) == 1)]
       stepp <- c(0,diff(peaky))
       max_height <- mcandidate100[which(ruler %in% peaky)]
