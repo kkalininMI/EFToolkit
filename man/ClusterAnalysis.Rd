@@ -7,11 +7,11 @@
 ClusterAnalysis(geodata, Vars, IndexCL, cores)
 }
 \arguments{
-\item{geodata}{shapefile object within a list (the algorithm also takes both polygon and point shapefiles within a list) or BuildMap object().}
+\item{geodata}{sf object within a list (the algorithm also takes both polygon and point sf objects within a list) or BuildMap object().}
 
 \item{Vars}{variable names used for geographic clustering tests}
 
-\item{IndexCL}{index variable name used for merging polygon and point shapefiles}
+\item{IndexCL}{index variable name used for merging polygon and point sf objects}
 
 \item{cores}{number of cores for parallel computing (2 cores by default)}
 }
@@ -29,9 +29,9 @@ This function implements geographic clustering tests: Getis-Ord Gi and local Mor
 }
 \examples{
 library(EFToolkit)
-library(rgdal)
+library(sf)
 
-dat<-read.csv(system.file("Albania2013.csv", package="EFToolkit"))
+dat<-read.csv(system.file("extdata/Albania2013.csv", package="EFToolkit"))
 #Obtain election forensics estimates
 eldata<-BasicElectionForensics(dat,
                               Candidates=c("C035", "C050"),
@@ -40,11 +40,13 @@ eldata<-BasicElectionForensics(dat,
                               Methods=c("P05s", "C05s"), R=100)
 
 #Create the map with results
-geodata<-readOGR(system.file("Albania2013_prefectures.shp", package="EFToolkit"), verbose = FALSE)
-figures<-BuildMap(eforensicsdata=eldata, geodata=geodata, Geoindex="Level", Colorsig=FALSE)
+geodata<-st_read(system.file(
+           "extdata/Albania2013_prefectures.shp",
+           package="EFToolkit"), quiet = TRUE)
+figures<-BuildMap(eforensicsdata=eldata, geodata=geodata,
+                  Geoindex="Level", Colorsig=FALSE)
 
 #Using the mapped results, implement cluster analysis
 figureC<-ClusterAnalysis(figures, Vars=c("C050_P05s", "C050_C05s"))
-
 
 }

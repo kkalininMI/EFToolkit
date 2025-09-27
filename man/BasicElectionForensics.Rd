@@ -50,7 +50,7 @@ Counts (05s), Multimodality Test, Sobyanin-Sukhovolsky test and Correlation test
 \examples{
 library(EFToolkit)
 
-dat<-read.csv(system.file("Albania2013.csv", package="EFToolkit"))
+dat<-read.csv(system.file("extdata/Albania2013.csv", package="EFToolkit"))
 
 #NB! R=100 to speed up computations for this example.
 eldata<-BasicElectionForensics(dat,

@@ -9,9 +9,9 @@ BuildMap(eforensicsdata, geodata, Geoindex, Colorsig, xlab)
 \arguments{
 \item{eforensicsdata}{BasicElectionForensics() object}
 
-\item{geodata}{shapefile object}
+\item{geodata}{sf object}
 
-\item{Geoindex}{name of index variable from shapefile object used to merge geodata with BasicElectionForensics() object}
+\item{Geoindex}{name of index variable from sf object used to merge geodata with BasicElectionForensics() object}
 
 \item{Colorsig}{only statistically significant estimates are mapped (FALSE by default)}
 
@@ -22,7 +22,7 @@ A list containing the following parameters:
 \itemize{
   \item figures - list of constructed figures
   \item Colorsig -  external parameter
-  \item shpdata - updated shp file
+  \item shpdata - updated sf object
   \item creationdate - date/time of analysis
 }
 }
@@ -31,16 +31,16 @@ This function constructs the map based on the results from BasicElectionForensic
 }
 \examples{
 library(EFToolkit)
-library(rgdal)
+library(sf)
 
-dat<-read.csv(system.file("Albania2013.csv", package="EFToolkit"))
+dat<-read.csv(system.file("extdata/Albania2013.csv", package="EFToolkit"))
 eldata<-BasicElectionForensics(dat,
                               Candidates=c("C035", "C050"),
                               Level="Prefectures", TotalReg="Registered",
                               TotalVotes="Ballots",
                               Methods=c("P05s", "C05s"), R=100)
-geodata<-readOGR(system.file("Albania2013_prefectures.shp",
-                          package="EFToolkit"), verbose = FALSE)
+geodata<-st_read(system.file("extdata/Albania2013_prefectures.shp",
+                          package="EFToolkit"), quiet = TRUE)
 
 figures<-BuildMap(eforensicsdata=eldata, geodata=geodata, Geoindex="Level")
 }

@@ -16,20 +16,25 @@
 #' library(EFToolkit)
 #'
 #' #Russia examples
-#' dat<-read.csv(system.file("ruspres2018.csv", package="EFToolkit"))
-#' dat<-subset(dat, select=c("region", "NVoters", "NValid", "Votes"))
+#' dat<-read.csv(system.file("extdata/ruspres2000.csv", package="EFToolkit"))
+#' dat<-subset(dat, select=c("regname", "NVoters", "NValid", "Votes"))
 #' datc<-dat[dat$region=="Volgogradskaya Oblast`",]
 #' #Do not run: takes long time to compute
-#' #res<-ComputeFiniteMixtureModel(datc, MainCandidate="Votes", TotalReg="NVoters", TotalVotes="NValid")
+#'\dontrun{
+#' res <- ComputeFiniteMixtureModel(datc,
+#'        MainCandidate = "Votes",
+#'        TotalReg = "NVoters",
+#'        TotalVotes = "NValid")
+#'  }
 
 ###################################
-###2015/7/18
-##Klimek-like Methods
-##  Walter Mebane and Naoki Egami
+## 2015/7/18                     ##
+## Klimek-like Methods           ##
+## Walter Mebane and Naoki Egami ##
 ###################################
 
 ComputeFiniteMixtureModel <- function(dat, MainCandidate="Votes", TotalReg="NVoters", TotalVotes="NValid", cores=2, itstartmax=1){
-  iterations <<- 5
+  iterations <- 5
 
   cleandata<-function(dat){
     dat$Votes <- dat[, names(dat)%in%MainCandidate]

@@ -30,9 +30,14 @@ This function implements the Finite Mixture Model developed and coded by Walter 
 library(EFToolkit)
 
 #Russia examples
-dat<-read.csv(system.file("ruspres2018.csv", package="EFToolkit"))
-dat<-subset(dat, select=c("region", "NVoters", "NValid", "Votes"))
+dat<-read.csv(system.file("extdata/ruspres2000.csv", package="EFToolkit"))
+dat<-subset(dat, select=c("regname", "NVoters", "NValid", "Votes"))
 datc<-dat[dat$region=="Volgogradskaya Oblast`",]
 #Do not run: takes long time to compute
-#res<-ComputeFiniteMixtureModel(datc, MainCandidate="Votes", TotalReg="NVoters", TotalVotes="NValid")
+\dontrun{
+res <- ComputeFiniteMixtureModel(datc,
+       MainCandidate = "Votes",
+       TotalReg = "NVoters",
+       TotalVotes = "NValid")
+ }
 }

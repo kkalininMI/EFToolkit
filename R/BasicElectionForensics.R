@@ -42,7 +42,7 @@
 #' @examples
 #' library(EFToolkit)
 #'
-#' dat<-read.csv(system.file("Albania2013.csv", package="EFToolkit"))
+#' dat<-read.csv(system.file("extdata/Albania2013.csv", package="EFToolkit"))
 #'
 #' #NB! R=100 to speed up computations for this example.
 #' eldata<-BasicElectionForensics(dat,
@@ -57,9 +57,10 @@
 
 ############################################################
 ##               Election Forensics Toolkit               ##
-##  25sep2015, 24oct2019                                  ##
+##  25sep2015, 24oct2019, 23sep2025                       ##
 ##  Kirill Kalinin and Walter R. Mebane, Jr               ##
 ############################################################
+
 BasicElectionForensics<-function(data, Candidates, Level="National", TotalReg, TotalVotes, Methods, R=1000, cores=2){
 
   closeAllConnections()
@@ -373,7 +374,6 @@ BasicElectionForensics<-function(data, Candidates, Level="National", TotalReg, T
   SelectedMethods[,2][seq(2,length(SelectedMethods[,2]),2)]<-""
   SelectedMethods[is.na(SelectedMethods)] <- "--";
   colnames(SelectedMethods) <- c("Level", "Candidate's Name", MethNames[MethNames %in% Methods], "Obs");
-
 
   coloredResults<-ColorSignificance(SelectedMethods)
   coloredResults[[1]]
