@@ -83,25 +83,17 @@ print(results$table)
 
 ### Interpretation Guidelines
 
-#### Benford's Law (`_2BL`)
-- **Expected**: Mean second digit ≈ 4.5
-- **Suspicious**: Significant deviations from expected value
-- **Indicates**: Potential data manipulation or non-natural number generation
-
-#### Last Digit Tests (`LastC`, `P05s`, `C05s`)
-- **Expected**: Uniform distribution across digits (mean ≈ 4.5 for LastC)
-- **Suspicious**: Clustering around 0s and 5s, or other non-uniform patterns
-- **Indicates**: Rounding, psychological biases, or deliberate manipulation
-
-#### Distribution Shape (`Skew`, `Kurt`, `DipT`)
-- **Expected**: Relatively normal distributions in natural elections
-- **Suspicious**: High skewness, unusual kurtosis, or clear multimodality
-- **Indicates**: Systematic vote manipulation or unusual voting patterns
-
-#### Turnout-Vote Relationship (`Sobyanin`, `Correlation`)
-- **Expected**: Weak or moderate correlations
-- **Suspicious**: Strong positive correlations, especially with unusual slopes
-- **Indicates**: Potential ballot stuffing or carousel voting
+| Test | No fraud | Interpretation |
+|------|:--------:|----------------|
+| **Second-digit mean (2BL)** | 4.187 | Values close to 4.19 are consistent with Benford's Law. Systematic deviations (too low or too high) may indicate artificial rounding or human fabrication. |
+| **Last-digit mean (LastC)** | 4.5 | Randomly distributed last digits should average 4.5. Substantial deviations suggest that numbers may not be uniformly random (e.g., preferences for certain digits). |
+| **Count of last-digit 0/5 ind. mean (C05s)** | 0.2 | About 20% of values should end in 0 or 5. Excess frequency of 0s or 5s may reflect rounding or strategic reporting. |
+| **Perc. last-digit 0/5 ind. mean (P05s)** | 0.2 | Same logic applies to percentages; deviations from 0.2 may signal manipulation of turnout or result percentages. |
+| **Skewness (Skew)** | 0 | A symmetric distribution has skewness near zero. Positive skew indicates a longer right tail (many low but a few very high values); negative skew the opposite. Significant skewness may indicate anomalous clustering of results. |
+| **Kurtosis (Kurt)** | 3 | A normal distribution has kurtosis of 3. Higher values (>3) indicate peakedness (results too concentrated), while lower values (<3) suggest excessive dispersion. |
+| **Unimodality test p-value (DipT)** | >0.05 | A p-value greater than 0.05 supports unimodality (single peak). Values below 0.05 indicate multimodality, possibly reflecting a mixture of normal and manipulated results. |
+| **Sobyanin--Sukhovolsky** | near 0 | Captures the degree of association between turnout and vote share. Under normal conditions, this relationship should be weak or nonexistent; strong positive association may indicate manipulated results. |
+| **Correlation coefficient (Corr)** | near 0 | Measures the correlation between turnout and vote share across precincts. Values close to zero are expected in competitive elections; high positive correlations suggest manipulated results. |
 
 
 

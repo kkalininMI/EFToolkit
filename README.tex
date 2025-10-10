@@ -1,0 +1,1083 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+\geometry{a4paper, margin=1in}
+
+\definecolor{codebg}{rgb}{0.95,0.95,0.95}
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    captionpos=b
+}
+
+\title{Election Forensics Toolkit: An R Package}
+\author{Kirill Kalinin}
+\date{September 24, 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{BasicElectionForensics()}
+
+The \texttt{BasicElectionForensics} function is a comprehensive R tool designed to perform statistical analysis on election data to detect potential irregularities or fraud patterns. This function implements multiple forensic methods commonly used in election integrity research and provides both statistical results and significance testing through bootstrap methods.
+
+\begin{lstlisting}[language=R]
+BasicElectionForensics(data, Candidates, Level="National", 
+                      TotalReg, TotalVotes, Methods, R=1000, cores=2)
+\end{lstlisting}
+
+\subsection{Input}
+\begin{longtable}{p{3cm}p{3cm}p{8cm}}
+\toprule
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{data} & data.frame & The input dataset containing election results \\
+\texttt{Candidates} & vector & Variable names referring to vote counts for candidates/parties \\
+\texttt{Level} & string & Variable name depicting the level of analysis (default: "National") \\
+\texttt{TotalReg} & string & Variable name for the total number of eligible voters \\
+\texttt{TotalVotes} & string & Variable name for the total number of ballots cast \\
+\texttt{Methods} & vector & List of forensic methods to apply (see Methods section) \\
+\texttt{R} & numeric & Number of bootstrap simulations (default: 1000) \\
+\texttt{cores} & numeric & Number of cores for parallel computing (default: 2) \\
+\bottomrule
+\end{longtable}
+
+\subsection{Output}
+\begin{longtable}{p{3cm}p{3cm}p{8cm}}
+\toprule
+\textbf{Output} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{table} & \texttt{data.frame} & Numerical results of the election forensic tests \\
+\texttt{tex} & \texttt{xtable}, \texttt{data.frame} & LaTeX-formatted results table suitable for academic use \\
+\texttt{html} & \texttt{datatables}, \texttt{htmlwidget} & Interactive HTML table with color-coded significance \\
+\texttt{sigMatrix} & \texttt{matrix}, \texttt{array} & Binary significance matrix for further statistical analysis \\
+\bottomrule
+\end{longtable}
+
+\subsection{Statistical Distribution Tests}
+\begin{itemize}
+    \item \texttt{\_2BL} - Second-digit mean test (Benford's Law analysis)
+    \item \texttt{LastC} - Last-digit mean test for uniform distribution
+    \item \texttt{P05s} - Percentage last-digit 0/5 indicator (for percentages)
+    \item \texttt{C05s} - Count last-digit 0/5 indicator (for vote counts)
+    \item \texttt{Skew} - Skewness measure (asymmetry from normal distribution)
+    \item \texttt{Kurt} - Kurtosis measure (tail heaviness compared to normal distribution)
+    \item \texttt{DipT} - Unimodality test (Hartigan's dip test)
+    \item \texttt{Sobyanin} - Sobyanin-Sukhovolsky measure (turnout-vote share relationship)
+    \item \texttt{Correlation} - Correlation coefficient between turnout and vote share
+\end{itemize}
+
+\subsection{Key Features}
+\begin{itemize}
+    \item Uses nonparametric bootstrap with configurable number of simulations (R parameter)
+    \item Provides confidence intervals for statistical significance
+    \item Supports parallel processing for improved performance
+    \item Works with various election data formats
+    \item Handles missing data appropriately
+    \item Supports multi-level analysis (e.g., national, regional, local)
+\end{itemize}
+
+\subsection{Usage Example}
+\begin{lstlisting}[language=R]
+library(EFToolkit)
+
+# Load election data
+dat <- read.csv(system.file("extdata/Albania2013.csv", package="EFToolkit"))
+
+# Run forensics analysis
+results <- BasicElectionForensics(
+  dat,
+  Candidates = c("C035", "C050"),
+  Level = "Prefectures", 
+  TotalReg = "Registered",
+  TotalVotes = "Ballots",
+  Methods = c("P05s", "C05s", "_2BL", "Sobyanin", 
+              "DipT", "Skew", "Kurt", "Correlation"),
+  cores = 2, 
+  R = 100  # Reduced for faster computation in example
+)
+
+# View results
+print(results$table)
+\end{lstlisting}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\textwidth]{inst/figures/EFT_table.png}
+\caption{Basic Election Forensics Table}
+\end{figure}
+
+\subsection{Interpretation Guidelines}
+
+See Table \ref{tab:interpret}
+\begin{table}[ht]
+\centering
+\footnotesize
+\caption{Interpretation Guidelines} \label{tab:interpret}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Test} & \textbf{No fraud} & \textbf{Interpretation} \\
+\midrule
+Second-digit mean (2BL) & 4.187 & 
+Values close to 4.19 are consistent with Benford's Law. Systematic deviations (too low or too high) may indicate artificial rounding or human fabrication. \\
+
+Last-digit mean (LastC) & 4.5 & 
+Randomly distributed last digits should average 4.5. Substantial deviations suggest that numbers may not be uniformly random (e.g., preferences for certain digits). \\
+
+Count of last-digit 0/5 ind. mean (C05s) & 0.2 & 
+About 20\% of values should end in 0 or 5. Excess frequency of 0s or 5s may reflect rounding or strategic reporting. \\
+
+Perc. last-digit 0/5 ind. mean (P05s) & 0.2 & 
+Same logic applies to percentages; deviations from 0.2 may signal manipulation of turnout or result percentages. \\
+
+Skewness (Skew) & 0 & 
+A symmetric distribution has skewness near zero. Positive skew indicates a longer right tail (many low but a few very high values); negative skew the opposite. Significant skewness may indicate anomalous clustering of results. \\
+
+Kurtosis (Kurt) & 3 & 
+A normal distribution has kurtosis of 3. Higher values ($>3$) indicate peakedness (results too concentrated), while lower values ($<3$) suggest excessive dispersion.\\
+
+Unimodality test $p$-value (DipT) & $>0.05$ & 
+A $p$-value greater than 0.05 supports unimodality (single peak). Values below 0.05 indicate multimodality, possibly reflecting a mixture of normal and manipulated results. \\
+
+Sobyanin--Sukhovolsky  & near 0 & 
+Captures the degree of association between turnout and vote share. Under normal conditions, this relationship should be weak or nonexistent; strong positive association may indicate manipulated results. \\
+
+Correlation coefficient (Corr) & near 0 & 
+Measures the correlation between turnout and vote share across precincts. Values close to zero are expected in competitive elections; high positive correlations suggest manipulated results. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+\section{BuildMap()}
+
+The \texttt{BuildMap} function is a specialized R visualization tool designed to create choropleth maps from election forensics analysis results. This function takes the output from \texttt{BasicElectionForensics()} and combines it with geographic data to produce spatial visualizations of statistical anomalies and patterns in election data.
+
+\begin{lstlisting}[language=R]
+BuildMap(eforensicsdata, geodata, Geoindex, Colorsig=FALSE, xlab="")
+\end{lstlisting}
+
+\subsection{Input}
+\begin{longtable}{p{3cm}p{3cm}p{8cm}}
+\toprule
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{eforensicsdata} & list & Output object from \texttt{BasicElectionForensics()} function \\
+\texttt{geodata} & sf object & Spatial data frame containing geographic boundaries \\
+\texttt{Geoindex} & string & Name of index variable from sf object used to merge geodata with forensics results \\
+\texttt{Colorsig} & logical & If TRUE, only statistically significant estimates are mapped (default: FALSE) \\
+\texttt{xlab} & string & X-axis label or subtitle for the maps \\
+\bottomrule
+\end{longtable}
+
+\subsection{Output}
+\begin{longtable}{p{3cm}p{3cm}p{8cm}}
+\toprule
+\textbf{Output} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{figures} & \texttt{list} & Collection of generated plots (either \texttt{spplot} or \texttt{tmap} objects) \\
+\texttt{Colorsig} & \texttt{logical} & Indicator of whether significance-based coloring was applied (\texttt{TRUE/FALSE}) \\
+\texttt{shpdata} & \texttt{sf} (simple features) & Spatial dataset with election forensics results merged with geodata \\
+\texttt{creationdate} & \texttt{POSIXct} & Timestamp of when the output was created \\
+\bottomrule
+\end{longtable}
+
+\subsection{Key Features}
+
+\subsubsection{Spatial Data Integration}
+\begin{itemize}
+    \item Seamlessly merges election forensics results with geographic boundaries
+    \item Supports sf (Simple Features) spatial data format
+    \item Handles missing data and geographic mismatches gracefully
+\end{itemize}
+
+\subsubsection{Flexible Visualization Options}
+\begin{itemize}
+    \item \textbf{Standard Mode}: Displays all forensic values with continuous color scales
+    \item \textbf{Significance Mode}: Highlights only statistically significant results
+    \item Customizable color schemes using ColorBrewer palettes
+\end{itemize}
+
+\subsubsection{Multi-Method Mapping}
+\begin{itemize}
+    \item Automatically generates maps for all forensic methods in the input data
+    \item Creates separate visualizations for each candidate-method combination
+    \item Supports multiple candidates and analysis levels simultaneously
+\end{itemize}
+
+\subsection{Usage Example}
+\begin{lstlisting}[language=R]
+library(EFToolkit)
+library(sf)
+
+# Load election data
+dat <- read.csv(system.file("extdata/Albania2013.csv", package="EFToolkit"))
+
+# Run forensics analysis
+eldata <- BasicElectionForensics(dat,
+                                Candidates=c("C035", "C050"),
+                                Level="Prefectures", TotalReg="Registered",
+                                TotalVotes="Ballots",
+                                Methods=c("P05s", "C05s"), R=100)
+
+# Load geographic data
+geodata <- st_read(system.file("extdata/Albania2013_prefectures.shp",
+                          package="EFToolkit"), quiet = TRUE)
+
+# Create maps
+figures <- BuildMap(eforensicsdata=eldata, geodata=geodata, Geoindex="Level")
+
+# Access individual maps
+print(figures$figures$Turn_P05s)  # Turnout P05s method map
+print(figures$figures$C035_P05s)  # Candidate C035 P05s method map
+\end{lstlisting}
+
+The function generates choropleth maps showing spatial patterns of election forensics indicators:
+
+\begin{figure}[h]
+\centering
+\begin{tabular}{cccc}
+\includegraphics[width=0.22\textwidth]{inst/figures/img1.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img2.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img3.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img4.png} \\
+Image 1 & Image 2 & Image 3 & Image 4 \\
+\end{tabular}
+\end{figure}
+
+\subsection{Technical Implementation Details}
+
+\subsubsection{Spatial Data Handling}
+\begin{itemize}
+    \item Uses \texttt{sf} package for modern spatial data processing
+    \item Maintains coordinate reference systems throughout analysis
+    \item Supports various geographic file formats (shapefile, GeoJSON, etc.)
+    \item Implements ColorBrewer "OrRd" (Orange-Red) palette by default
+    \item Provides good contrast for highlighting anomalies
+    \item Color-blind friendly options available through ColorBrewer
+\end{itemize}
+
+\subsubsection{Color Intensity Interpretation}
+\begin{itemize}
+    \item \textbf{Light Colors}: Values close to expected/normal ranges
+    \item \textbf{Medium Colors}: Moderate deviations from expected patterns  
+    \item \textbf{Dark Colors}: Strong deviations suggesting potential irregularities
+    \item \textbf{No Color/White}: Missing data or areas excluded from analysis
+\end{itemize}
+
+\subsubsection{Spatial Pattern Analysis}
+\begin{itemize}
+    \item \textbf{Clustering}: Adjacent areas with similar colors may indicate systematic issues
+    \item \textbf{Isolated Anomalies}: Single areas with extreme values warrant individual investigation
+    \item \textbf{Border Effects}: Patterns along administrative boundaries may suggest institutional factors
+    \item \textbf{Urban/Rural Differences}: Different patterns by area type are common
+\end{itemize}
+
+\section{ClusterAnalysis()}
+
+The \texttt{ClusterAnalysis} function implements sophisticated spatial clustering tests to identify geographic patterns and anomalies in election forensics data. This function uses two complementary statistical methods - Getis-Ord Gi* and Local Moran's I - to detect spatial clusters of unusual values, helping researchers identify areas where election irregularities may be spatially correlated.
+
+\begin{lstlisting}[language=R]
+ClusterAnalysis(geodata, Vars, IndexCL=NULL, cores=2)
+\end{lstlisting}
+
+\subsection{Input}
+\begin{longtable}{p{3cm}p{3cm}p{8cm}}
+\toprule
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{geodata} & sf object/list & Spatial data within a list (supports both polygon and point sf objects) or BuildMap object \\
+\texttt{Vars} & character vector & Variable names used for geographic clustering tests \\
+\texttt{IndexCL} & string & Index variable name used for merging polygon and point sf objects (optional) \\
+\texttt{cores} & numeric & Number of cores for parallel computing (default: 2) \\
+\bottomrule
+\end{longtable}
+
+\subsection{Output}
+\begin{longtable}{p{6cm}p{3cm}p{5cm}}
+\toprule
+\textbf{Output} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{Moran's I for <Var>} & \texttt{ggplot} & A \texttt{ggplot} map visualizing local Moran's I cluster results for variable \texttt{<Var>}. \\
+\texttt{Getis-Ord for <Var>} & \texttt{ggplot} & A \texttt{ggplot} map visualizing Getis-Ord G* hot- and cold-spots for variable \texttt{<Var>}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Spatial Clustering Methods}
+
+\subsubsection{Local Moran's I}
+\begin{itemize}
+    \item \textbf{Purpose}: Identifies local clusters and spatial outliers
+    \item \textbf{Detects}: Four types of spatial associations:
+    \begin{itemize}
+        \item \textbf{HH (High-High)}: High values surrounded by high values
+        \item \textbf{LL (Low-Low)}: Low values surrounded by low values  
+        \item \textbf{HL (High-Low)}: High values surrounded by low values
+        \item \textbf{LH (Low-High)}: Low values surrounded by high values
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Getis-Ord Gi* Statistic}
+\begin{itemize}
+    \item \textbf{Purpose}: Identifies hot spots and cold spots
+    \item \textbf{Detects}: Two types of spatial concentrations:
+    \begin{itemize}
+        \item \textbf{Hot Spots}: Areas with significantly high values clustered together
+        \item \textbf{Cold Spots}: Areas with significantly low values clustered together
+    \end{itemize}
+\end{itemize}
+
+The function generates spatial cluster analysis maps showing different types of spatial patterns:
+
+\begin{figure}[h]
+\centering
+\begin{tabular}{cccc}
+\includegraphics[width=0.22\textwidth]{inst/figures/img5.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img6.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img7.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img8.png} \\
+Moran P05s & Getis P05s & Moran C05s & Getis C05s \\
+\end{tabular}
+\caption{Spatial clustering analysis for Albanian election data - (1) Local Moran's I for P05s method, (2) Getis-Ord hot/cold spots for P05s, (3) Local Moran's I for C05s method, (4) Getis-Ord analysis for C05s method}
+\end{figure}
+
+\begin{lstlisting}[language=R]
+library(EFToolkit)
+library(sf)
+
+# Load election data
+dat <- read.csv(system.file("extdata/Albania2013.csv", package="EFToolkit"))
+
+# Obtain election forensics estimates
+eldata <- BasicElectionForensics(dat,
+                                Candidates=c("C035", "C050"),
+                                Level="Prefectures", TotalReg="Registered",
+                                TotalVotes="Ballots",
+                                Methods=c("P05s", "C05s"), R=100)
+
+# Create the map with results
+geodata <- st_read(system.file("extdata/Albania2013_prefectures.shp", 
+                              package="EFToolkit"), quiet = TRUE)
+figures <- BuildMap(eforensicsdata=eldata, geodata=geodata, 
+                   Geoindex="Level", Colorsig=FALSE)
+
+# Using the mapped results, implement cluster analysis
+cluster_results <- ClusterAnalysis(figures, Vars=c("C050_P05s", "C050_C05s"))
+
+# View specific cluster maps
+print(cluster_results[["Moran's I for C050_P05s"]])
+print(cluster_results[["Getis-Ord for C050_P05s"]])
+\end{lstlisting}
+
+\subsection{Key Features}
+
+\subsubsection{Advanced Spatial Statistics}
+\begin{itemize}
+    \item \textbf{Permutation-based Testing}: Uses Monte Carlo permutation tests for statistical significance
+    \item \textbf{False Discovery Rate Control}: Implements Benjamini-Hochberg FDR correction for multiple testing
+    \item \textbf{Parallel Processing}: Supports multi-core computation for large datasets
+\end{itemize}
+
+\subsubsection{Flexible Input Handling}
+\begin{itemize}
+    \item \textbf{Multiple Data Types}: Works with polygon and point spatial data
+    \item \textbf{Integration Ready}: Seamlessly processes BuildMap function outputs
+    \item \textbf{Missing Data Handling}: Robust treatment of missing or invalid data points
+\end{itemize}
+
+\subsubsection{Comprehensive Visualization}
+\begin{itemize}
+    \item \textbf{Color-coded Results}: Uses standardized color schemes for easy interpretation
+    \item \textbf{Multiple Significance Levels}: Shows results at 90\%, 95\%, and 99\% confidence levels
+    \item \textbf{Interactive Plotting}: Generates ggplot2 objects for further customization
+\end{itemize}
+
+\subsection{Color Coding System}
+
+\subsubsection{Local Moran's I Colors}
+\begin{longtable}{p{3cm}p{2cm}p{2cm}p{2cm}p{5cm}}
+\toprule
+\textbf{Pattern} & \textbf{99\% Level} & \textbf{95\% Level} & \textbf{90\% Level} & \textbf{Description} \\
+\midrule
+\textbf{HH} & Dark Red & Light Red & Pink & High-High clusters \\
+\textbf{LL} & Dark Blue & Light Blue & Light Gray & Low-Low clusters \\
+\textbf{HL} & Dark Orange & Light Orange & Yellow & High-Low outliers \\
+\textbf{LH} & Dark Green & Light Green & Light Green & Low-High outliers \\
+\textbf{NS} & Light Gray & Light Gray & Light Gray & Not significant \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Getis-Ord Gi* Colors}
+\begin{longtable}{p{4cm}p{8cm}p{2cm}}
+\toprule
+\textbf{Pattern} & \textbf{Description} & \textbf{Color} \\
+\midrule
+\textbf{Hot Spot (99\%)} & Highly significant hot spot & Dark Red \\
+\textbf{Hot Spot (95\%)} & Significant hot spot & Medium Red \\
+\textbf{Hot Spot (90\%)} & Moderately significant hot spot & Light Red \\
+\textbf{Cold Spot (99\%)} & Highly significant cold spot & Dark Blue \\
+\textbf{Cold Spot (95\%)} & Significant cold spot & Medium Blue \\
+\textbf{Cold Spot (90\%)} & Moderately significant cold spot & Light Blue \\
+\textbf{Not Significant} & No significant clustering & Light Gray \\
+\bottomrule
+\end{longtable}
+
+\subsection{Interpretation Guidelines}
+
+\subsubsection{Local Moran's I Results}
+\begin{itemize}
+    \item \textbf{High-High Clusters (Red)}: Areas with high forensic values surrounded by similar high values
+    \begin{itemize}
+        \item \textit{Interpretation}: Potential systematic irregularities in neighboring areas
+        \item \textit{Action}: Priority areas for detailed investigation
+    \end{itemize}
+    
+    \item \textbf{Low-Low Clusters (Blue)}: Areas with low forensic values surrounded by similar low values
+    \begin{itemize}
+        \item \textit{Interpretation}: Regions with consistently normal patterns
+        \item \textit{Action}: Lower priority for investigation
+    \end{itemize}
+    
+    \item \textbf{High-Low Outliers (Orange)}: High values surrounded by low values
+    \begin{itemize}
+        \item \textit{Interpretation}: Isolated anomalies or data quality issues
+        \item \textit{Action}: Investigate for administrative or data collection problems
+    \end{itemize}
+    
+    \item \textbf{Low-High Outliers (Green)}: Low values surrounded by high values
+    \begin{itemize}
+        \item \textit{Interpretation}: Unusually clean areas within problematic regions
+        \item \textit{Action}: Verify data accuracy or investigate protective factors
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Getis-Ord Results}
+\begin{itemize}
+    \item \textbf{Hot Spots (Red Shades)}: Statistically significant concentrations of high values
+    \begin{itemize}
+        \item \textit{Interpretation}: Geographic clustering of potential irregularities
+        \item \textit{Action}: Focus investigative resources on these areas
+    \end{itemize}
+    
+    \item \textbf{Cold Spots (Blue Shades)}: Statistically significant concentrations of low values
+    \begin{itemize}
+        \item \textit{Interpretation}: Areas with consistently normal electoral patterns
+        \item \textit{Action}: Use as baseline comparisons or control areas
+    \end{itemize}
+\end{itemize}
+
+\section{NonparamElectionForensics()}
+
+The \texttt{NonparamElectionForensics} function implements a revised version of Shpilkin's method for detecting election fraud through nonparametric analysis of vote distributions. This method identifies anomalous voting patterns by analyzing the relationship between turnout and candidate support, detecting artificial vote inflation through statistical modeling of "clean" electoral behavior.
+
+\begin{lstlisting}[language=R]
+NonparamElectionForensics(data, Candidates, CandidatesText=NULL,
+                         MainCandidate, TotalReg, TotalVotes=NULL,
+                         Level=NULL, MaxThreshold=0.8,
+                         FigureName, setcolors=NULL,
+                         precinctLevel=TRUE, computeSD=NULL,
+                         sims=10, mode_search=list(npeaks=5, sortstr=TRUE,
+                                                  minpeakdistance=1, pick_by="height"),
+                         man_turnout=NULL, grid_type="1D")
+\end{lstlisting}
+
+\subsection{Input}
+\begin{longtable}{p{4cm}p{3cm}p{7cm}}
+\toprule
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{data} & data.frame & Electoral data containing vote counts and registration information \\
+\texttt{Candidates} & vector & Variable names for all candidates/parties in the election \\
+\texttt{CandidatesText} & vector & Display names for candidates/parties (uses \texttt{Candidates} if NULL) (default: NULL) \\
+\texttt{MainCandidate} & string & Variable name for main/incumbent candidate \\
+\texttt{TotalReg} & string & Variable name for total number of eligible voters \\
+\texttt{TotalVotes} & string & Variable name for total ballots cast (computed from candidates if NULL) (default: NULL) \\
+\texttt{Level} & string & Variable for analysis level (default: "National") \\
+\texttt{MaxThreshold} & numeric & Anomalous turnout threshold (default: 0.8) \\
+\texttt{FigureName} & string & Title for generated figures \\
+\texttt{setcolors} & vector & Custom color palette (random if NULL) (default: NULL) \\
+\texttt{precinctLevel} & logical & Whether to compute precinct-level estimates (default: TRUE) \\
+\texttt{computeSD} & string & Standard error method: "parametric" or "nonparametric" (default: NULL) \\
+\texttt{sims} & numeric & Number of simulations for uncertainty estimation (default: 10) \\
+\texttt{mode\_search} & list & Clean peak search parameters \\
+\texttt{man\_turnout} & numeric & Manual clean peak turnout override (default: NULL) \\
+\texttt{grid\_type} & string & Estimation approach: "1D" or "2D" (default: "1D") \\
+\bottomrule
+\end{longtable}
+
+The \texttt{mode\_search} parameter accepts a list with the following components:
+
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Parameter} & \textbf{Description} \\
+\midrule
+\texttt{npeaks} & Maximum number of peaks to identify \\
+\texttt{sortstr} & Whether to sort peaks by strength \\
+\texttt{minpeakdistance} & Minimum distance between peaks \\
+\texttt{pick\_by} & Peak selection method: "area", "height", "cluster", "quantile", or "elipse" \\
+\bottomrule
+\end{longtable}
+
+\subsection{Output}
+\begin{longtable}{p{4cm}p{3cm}p{7cm}}
+\toprule
+\textbf{Output} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{list\_graphs} & list & Collection of generated plots (ggplot2/plotly objects) \\
+\texttt{base\_stats} & list & Basic fraud statistics for the whole dataset \\
+\texttt{sim\_all\_stats} & list & Simulation statistics for the whole dataset (if computeSD specified) \\
+\texttt{sim\_hetero\_stats\_base} & data.frame & Base statistics for regional analyses (if Level != "National") \\
+\texttt{sim\_hetero\_stats\_sims} & data.frame & Simulation statistics for regional analyses (if Level != "National") \\
+\texttt{fraud\_precinct\_data} & data.frame & Precinct-level fraud estimates with uncertainty measures \\
+\texttt{data} & data.frame & Original input data with computed variables \\
+\texttt{Level} & character & Analysis level used in the function \\
+\texttt{creationdate} & POSIXct & Timestamp of when the output was created \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Precinct-Level Fraud Data Structure}
+
+When \texttt{precinctLevel=TRUE}, the \texttt{fraud\_precinct\_data} component contains:
+
+\begin{longtable}{p{5cm}p{9cm}}
+\toprule
+\textbf{Column} & \textbf{Description} \\
+\midrule
+\texttt{id} & Unique precinct identifier \\
+\texttt{base.fraud.votes} & Point estimate of fraudulent votes \\
+\texttt{sim.precinct\_mean} & Mean fraud estimate from simulations \\
+\texttt{sim.precinct\_sd} & Standard deviation of fraud estimates \\
+\texttt{sim.sig\_all} & Statistical significance indicator \\
+\texttt{precinct\_mean\_hetero} & Regional-level fraud estimates (when Level != "National") \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Primary Outputs}
+\begin{itemize}
+    \item \textbf{Official Turnout}: Reported voter participation rate
+    \item \textbf{Real Turnout}: Estimated legitimate turnout (clean peak)
+    \item \textbf{Official Support}: Reported candidate vote share
+    \item \textbf{Real Support}: Estimated legitimate support in clean regions
+    \item \textbf{Ballot Stuffing}: Votes added through turnout inflation
+    \item \textbf{Ballot Switching}: Votes transferred between candidates
+    \item \textbf{Total Fraud}: Combined fraudulent votes
+    \item \textbf{Proportional Fraud}: Fraud as percentage of total votes
+\end{itemize}
+
+\subsubsection{Uncertainty Quantification}
+When \texttt{computeSD} is specified, the function provides:
+
+\begin{itemize}
+    \item \textbf{Parametric}: Assumes binomial distributions for vote generation
+    \item \textbf{Nonparametric}: Uses bootstrap resampling for robust estimates
+\end{itemize}
+
+\subsubsection{Clean Peak Detection Methods}
+\begin{itemize}
+    \item \textbf{"height"}: Selects clean peak with highest vote count
+    \item \textbf{"area"}: Chooses clean peak with largest area under curve
+    \item \textbf{"cluster"}: Uses clustering to identify clean peak
+    \item \textbf{"quantile"}: Employs mixture models on turnout distribution for clean peak detection
+    \item \textbf{"elipse"}: Uses robust covariance estimation for clean peak detection
+\end{itemize}
+
+\subsubsection{Grid Types}
+\begin{itemize}
+    \item \textbf{1D Grid}: Uses 1D grid of turnout distribution to identify clean peak
+    \item \textbf{2D Method}: Uses 2D grid of joint distribution of turnout and incumbent's vote share
+\end{itemize}
+
+\subsection{Example 1: National-Level Analysis with 1D Grid}
+\begin{lstlisting}[language=R]
+library(EFToolkit)
+
+# Load Russian 2000 election data
+dat <- read.csv("electionfraud2000.csv")
+
+# National analysis using 1D estimation method
+res1 <- NonparamElectionForensics(dat, 
+                                 Candidates = paste("P", 1:12, sep=""),
+                                 CandidatesText = c("Stanislav Govorukhin", "Umar Dzhabrailov",  
+                                                    "Vladimir Zhirinovsky", "Gennady Zuganov", 
+                                                    "Ella Pamfilova", "Alexei Podberezkin", 
+                                                    "Vladimir Putin", "Yuri Skuratov",
+                                                    "Konstantin Titov", "Aman Tuleev",
+                                                    "Grigorii Yavlinsky", "Against All"),
+                                 MainCandidate = "P7",
+                                 TotalReg = "NVoters",
+                                 TotalVotes = "NValid",
+                                 Level = "National",
+                                 MaxThreshold = 0.8,
+                                 mode_search = list(npeaks = 5, sortstr = TRUE,
+                                                    minpeakdistance = 1, pick_by = "height"),
+                                 FigureName = "Russian Presidential Elections, 2000",
+                                 setcolors = c("royalblue2", "springgreen1","blue", 
+                                               "red", "green","brown2",
+                                               "darkgreen", "yellow", "lawngreen", 
+                                               "purple","chartreuse1", "orange"),
+                                 precinctLevel = TRUE, 
+                                 computeSD = "nonparametric",
+                                 sims = 10, 
+                                 grid_type = "1D")
+
+# Summary of precinct-level fraud estimates
+total_fraud <- sum(res1$fraud_precinct_data$base.fraud.votes, na.rm=TRUE)
+# Result: 2,685,246 fraudulent votes detected
+
+# Statistically significant fraud only
+significant_fraud <- sum(res1$fraud_precinct_data$sim.precinct_mean[
+  res1$fraud_precinct_data$sim.sig_all==TRUE], na.rm=TRUE)
+# Result: 811,501 significant fraudulent votes
+
+> res1$base_stats
+$`Whole dataset`
+official_turnout     real_turnout official_support     real_support  ballot_stuffing ballot_switching 
+    6.820000e+01     6.700000e+01     5.330000e+01     5.200000e+01     1.258868e+06     1.426378e+06 
+     total_fraud       prop_fraud 
+    2.685246e+06     6.990511e-02 
+    
+# Display the table of region-level measures
+View(round(res1$sim_hetero_stats_base, 3))
+\end{lstlisting}
+
+\begin{figure}[h]
+\centering
+\begin{tabular}{ccc}
+\includegraphics[width=0.3\textwidth]{inst/figures/img_national1.png} &
+\includegraphics[width=0.3\textwidth]{inst/figures/img_national2.png} &
+\includegraphics[width=0.3\textwidth]{inst/figures/img_national3.png} \\
+Image 1 & Image 2 & Image 3 \\
+\end{tabular}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\textwidth]{inst/figures/EFT_table2.png}
+\caption{Precinct-level results}
+\end{figure}
+
+\subsection{Example 2: Regional-Level Analysis with 1D Grid}
+\begin{lstlisting}[language=R]
+# Regional analysis across all federal subjects
+res2 <- NonparamElectionForensics(dat, 
+                                 Candidates = paste("P", 1:12, sep=""),
+                                 CandidatesText = c("Stanislav Govorukhin", "Umar Dzhabrailov",  
+                                                    "Vladimir Zhirinovsky", "Gennady Zuganov", 
+                                                    "Ella Pamfilova", "Alexei Podberezkin", 
+                                                    "Vladimir Putin", "Yuri Skuratov",
+                                                    "Konstantin Titov", "Aman Tuleev",
+                                                    "Grigorii Yavlinsky", "Against All"),
+                                 MainCandidate = "P7",
+                                 TotalReg = "NVoters",
+                                 TotalVotes = "NValid",
+                                 Level = "regname",  # Regional analysis
+                                 MaxThreshold = 0.8,
+                                 mode_search = list(npeaks = 5, sortstr = TRUE,
+                                                    minpeakdistance = 1, pick_by = "height"),
+                                 FigureName = "Russian Presidential Elections, 2000",
+                                 setcolors = c("royalblue2", "springgreen1","blue", 
+                                               "red", "green","brown2",
+                                               "darkgreen", "yellow", "lawngreen", 
+                                               "purple","chartreuse1", "orange"),
+                                 precinctLevel = TRUE, 
+                                 computeSD = "nonparametric",
+                                 sims = 10, 
+                                 grid_type = "1D")
+
+# Regional fraud estimates
+regional_fraud <- sum(res2$fraud_precinct_data$precinct_mean_hetero, na.rm=TRUE)
+# Result: 1,693,742 fraudulent votes across regions
+
+# Statistically significant regional fraud
+significant_regional_fraud <- sum(res2$fraud_precinct_data$precinct_mean_hetero[
+  res2$fraud_precinct_data$sim.sig_all==TRUE], na.rm=TRUE)
+# Result: 1,125,151 significant fraudulent votes
+\end{lstlisting}
+
+\begin{figure}[h]
+\centering
+\begin{tabular}{cccc}
+\includegraphics[width=0.22\textwidth]{inst/figures/img_2D_1.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img_2D_2.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img_2D_3.png} &
+\includegraphics[width=0.22\textwidth]{inst/figures/img_2D_4.png} \\
+Image 1 & Image 2 & Image 3 & Image 4 \\
+\end{tabular}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\textwidth]{inst/figures/EFT_table3.png}
+\caption{Region-level results}
+\end{figure}
+
+\subsection{Example 4: Analysis of Selected Regions with 2D Grid}
+\begin{lstlisting}[language=R]
+# Focus on specific regions of interest
+selected_regions <- c("Respublika Dagestan", "Gorod Moskva", 
+                      "Samarskaya Oblast`", "Volgogradskaya Oblast`")  
+dat_subset <- dat[dat$regname %in% selected_regions,]
+
+res4 <- NonparamElectionForensics(dat_subset, 
+                                 Candidates = paste("P", 1:12, sep=""),
+                                 CandidatesText = c("Stanislav Govorukhin", "Umar Dzhabrailov",  
+                                                    "Vladimir Zhirinovsky", "Gennady Zuganov", 
+                                                    "Ella Pamfilova", "Alexei Podberezkin", 
+                                                    "Vladimir Putin", "Yuri Skuratov",
+                                                    "Konstantin Titov", "Aman Tuleev",
+                                                    "Grigorii Yavlinsky", "Against All"),
+                                 MainCandidate = "P7",
+                                 TotalReg = "NVoters",
+                                 TotalVotes = "NValid",
+                                 Level = "regname",
+                                 MaxThreshold = 0.8,
+                                 mode_search = list(npeaks = 5, sortstr = TRUE,
+                                                    minpeakdistance = 1, pick_by = "height"),
+                                 FigureName = "Russian Presidential Elections, 2000",
+                                 setcolors = c("royalblue2", "springgreen1","blue", 
+                                               "red", "green","brown2",
+                                               "darkgreen", "yellow", "lawngreen", 
+                                               "purple","chartreuse1", "orange"),
+                                 precinctLevel = TRUE, 
+                                 computeSD = "nonparametric",
+                                 sims = 10, 
+                                 grid_type = "2D")
+
+# Access regional comparison results
+print(res4$stats_summary)
+\end{lstlisting}
+
+\begin{figure}[h]
+\centering
+\begin{tabular}{ccc}
+\includegraphics[width=0.3\textwidth]{inst/figures/img_3Dm_1.png} &
+\includegraphics[width=0.3\textwidth]{inst/figures/img_3Dm_2.png} &
+\includegraphics[width=0.3\textwidth]{inst/figures/img_3Dm_3.png} \\
+Image 1 & Image 2 & Image 3 \\
+\end{tabular}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\begin{tabular}{ccc}
+\includegraphics[width=0.3\textwidth]{inst/figures/img_3Dm_4.png} &
+\includegraphics[width=0.3\textwidth]{inst/figures/img_3Dm_5.png} &
+\includegraphics[width=0.3\textwidth]{inst/figures/img_3Dm_6.png} \\
+Image 4 & Image 5 & Image 6 \\
+\end{tabular}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\textwidth]{inst/figures/EFT_table4.png}
+\caption{Precinct-level results for selected regions analysis}
+\end{figure}
+
+\subsection{Advanced Features}
+
+\subsubsection{Multi-Level Analysis}
+When \texttt{Level} parameter specifies administrative units, the function:
+\begin{itemize}
+    \item Performs analysis for the entire dataset
+    \item Conducts separate analyses for each administrative unit
+    \item Aggregates results across regions
+    \item Provides comparative statistics
+\end{itemize}
+
+\subsubsection{Robust Peak Detection}
+The algorithm implements multiple fallback strategies:
+\begin{enumerate}
+    \item Primary method specified in \texttt{pick\_by}
+    \item Alternative clustering approaches if primary fails
+    \item Simple peak detection as ultimate fallback
+    \item Manual override through \texttt{man\_turnout} parameter
+\end{enumerate}
+
+\subsubsection{Precinct-Level Estimation}
+When \texttt{precinctLevel=TRUE}, the function:
+\begin{itemize}
+    \item Estimates fraud at individual precinct level
+    \item Uses post-stratification for statistical adjustment
+    \item Provides significance testing for precinct estimates
+    \item Enables spatial analysis integration
+\end{itemize}
+
+\subsection{Best Practices}
+
+\subsubsection{Method Selection}
+\begin{enumerate}
+    \item \textbf{Start with 1D analysis} for initial exploration
+    \item \textbf{Use regional-level analysis} for heterogeneous countries
+    \item \textbf{Apply nonparametric uncertainty} for robust estimates
+    \item \textbf{Test multiple \texttt{pick\_by} methods} for sensitivity analysis
+\end{enumerate}
+
+\subsubsection{Parameter Tuning}
+\begin{enumerate}
+    \item \textbf{Increase \texttt{sims}} for more precise uncertainty estimates
+    \item \textbf{Adjust \texttt{MaxThreshold}} based on country-specific context
+    \item \textbf{Experiment with \texttt{mode\_search}} parameters for optimal peak detection
+    \item \textbf{Use custom \texttt{setcolors}} for publication-quality visualizations
+\end{enumerate}
+
+\subsubsection{Result Validation}
+\begin{enumerate}
+    \item \textbf{Compare across estimation methods} (1D vs 2D)
+    \item \textbf{Examine statistical significance} alongside magnitude
+    \item \textbf{Cross-validate with other forensic indicators}
+    \item \textbf{Consider substantive electoral context}
+\end{enumerate}
+
+\section{Finite Mixture Model()}
+
+\textbf{\texttt{ComputeFiniteMixtureModel}} - A legacy implementation of Walter Mebane's Finite Mixture Model for electoral data analysis.
+
+The model uses Bayesian estimation techniques with EM-algorithm-like iterations to estimate the posterior probabilities of each precinct belonging to each fraud category.
+
+\begin{center}
+\fbox{\parbox{0.9\textwidth}{\textbf{\textcolor{red}{⚠ Important Note}}: This function is \textbf{legacy code} that is no longer actively maintained or supported. It may have dependencies on outdated packages or contain unoptimized algorithms.}}
+\end{center}
+
+\begin{lstlisting}[language=R]
+ComputeFiniteMixtureModel(dat, MainCandidate = "Votes", TotalReg = "NVoters", 
+                         TotalVotes = "NValid", cores = 2, itstartmax = 1)
+\end{lstlisting}
+
+\subsection{Input}
+\begin{longtable}{p{3cm}p{3cm}p{8cm}}
+\toprule
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{dat} & data.frame & Electoral dataset containing voting data \\
+\texttt{MainCandidate} & character & Variable name for the major/incumbent candidate votes (default: "Votes") \\
+\texttt{TotalReg} & character & Variable name for total number of eligible voters (default: "NVoters") \\
+\texttt{TotalVotes} & character & Variable name for total number of ballots cast (default: "NValid") \\
+\texttt{cores} & integer & Number of cores for parallel computing (default: 2) \\
+\texttt{itstartmax} & integer & Maximum number of iterations for optimization (default: 1) \\
+\bottomrule
+\end{longtable}
+
+\subsection{Output}
+Returns a list containing FMM estimates with the following structure:
+
+\begin{lstlisting}[language=R]
+list(
+  FF_null = matrix,    # Null model results (estimates and standard deviations)
+  FFlist_null = list,  # Full null model output including posterior probabilities
+  FF = matrix,         # Main model results (estimates and standard deviations)
+  FFlist = list        # Full main model output including posterior probabilities
+)
+\end{lstlisting}
+
+The output matrices contain the following parameters:
+
+\begin{longtable}{p{3cm}p{11cm}}
+\toprule
+\textbf{Parameter} & \textbf{Description} \\
+\midrule
+\texttt{incremental} & Proportion of incremental fraud \\
+\texttt{extreme} & Proportion of extreme fraud \\
+\texttt{alpha} & Fraud intensity parameter \\
+\texttt{turnout} & Turnout rate parameter \\
+\texttt{winprop} & Winning proportion parameter \\
+\texttt{sigma} & Standard deviation for vote proportions \\
+\texttt{stdAtt} & Standard deviation for attendance \\
+\texttt{theta} & Convergence test parameter \\
+\texttt{loglik} & Log-likelihood value \\
+\texttt{df} & Degrees of freedom \\
+\bottomrule
+\end{longtable}
+
+\subsection{Usage Example}
+\begin{lstlisting}[language=R]
+library(EFToolkit)
+
+# Load sample data
+dat <- read.csv(system.file("extdata/ruspres2020.csv", package = "EFToolkit"))
+dat <- subset(dat, select = c("region", "NVoters", "NValid", "Votes"))
+datc <- dat[dat$region == "Volgogradskaya Oblast`", ]
+
+# Run FMM analysis (commented out due to long computation time)
+# res <- ComputeFiniteMixtureModel(datc,
+#                                 MainCandidate = "Votes",
+#                                 TotalReg = "NVoters", 
+#                                 TotalVotes = "NValid")
+\end{lstlisting}
+
+\subsection{Key Features}
+\begin{itemize}
+    \item \textbf{Mixture Modeling}: Implements a finite mixture model with multiple fraud components
+    \item \textbf{Parallel Computing}: Supports multi-core processing for faster computation
+    \item \textbf{Robust Estimation}: Uses genetic algorithms (\texttt{rgenoud}) for parameter optimization
+    \item \textbf{Statistical Inference}: Provides estimates with standard errors
+\end{itemize}
+
+\subsection{Limitations \& Considerations}
+\begin{enumerate}
+    \item \textbf{Computational Intensity}: The function can be very slow for large datasets
+    \item \textbf{Legacy Status}: No longer actively supported or maintained
+    \item \textbf{Algorithm Complexity}: Implements sophisticated statistical models that may require domain expertise to interpret
+    \item \textbf{Parameter Sensitivity}: Results may be sensitive to starting values and iteration limits
+\end{enumerate}
+
+\section{Klimek Model()}
+
+\textbf{\texttt{ComputeKlimekModel}} - Implements the Klimek et al. (2012) simulation-based method for detecting electoral anomalies through histogram analysis of vote distributions.
+
+\begin{center}
+\fbox{\parbox{0.9\textwidth}{\textbf{\textcolor{red}{⚠ Legacy Function Notice}}: This function is \textbf{legacy code} that is no longer actively maintained or supported. It remains available for historical reference and research reproducibility but may have dependencies on outdated packages or contain unoptimized algorithms.}}
+\end{center}
+
+\subsection{Key Features:}
+\begin{itemize}
+    \item \textbf{Histogram-based analysis}: Compares observed vote distributions with simulated ones
+    \item \textbf{Fraud simulation}: Models incremental and extreme fraud scenarios
+    \item \textbf{Parameter estimation}: Estimates fraud parameters through iterative simulation
+    \item \textbf{Statistical testing}: Uses chi-square goodness-of-fit tests to evaluate model fit
+\end{itemize}
+
+\begin{lstlisting}[language=R]
+ComputeKlimekModel(data, Candidates, Level = "National", TotalReg, TotalVotes, 
+                   R = 1000, cores = 2)
+\end{lstlisting}
+
+\subsection{Input}
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Parameter} & \textbf{Description} \\
+\midrule
+\texttt{data} & Data frame containing electoral data \\
+\texttt{Candidates} & Variable name(s) for vote counts of candidates/parties \\
+\texttt{Level} & Variable indicating geographic level of analysis (default: "National") \\
+\texttt{TotalReg} & Variable name for total number of eligible voters \\
+\texttt{TotalVotes} & Variable name for total number of ballots cast \\
+\texttt{R} & Number of simulations to run (default: 1000) \\
+\texttt{cores} & Number of CPU cores for parallel computation (default: 2) \\
+\bottomrule
+\end{longtable}
+
+\subsection{Output}
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Column} & \textbf{Description} \\
+\midrule
+\texttt{Level} & Geographic level of analysis \\
+\texttt{Candidate} & Candidate/party name \\
+\texttt{KSimI} & Estimated proportion of incremental fraud \\
+\texttt{KSimE} & Estimated proportion of extreme fraud \\
+\texttt{KSimalpha} & Fraud intensity parameter \\
+\texttt{KSimturnout} & Estimated turnout rate parameter \\
+\texttt{KSimwinprop} & Estimated winning proportion parameter \\
+\texttt{KSimsigma} & Standard deviation for vote proportions \\
+\texttt{KSimstdAtt} & Standard deviation for attendance rates \\
+\texttt{KSimtheta} & Convergence test parameter \\
+\texttt{Obs} & Number of observations used in analysis \\
+\bottomrule
+\end{longtable}
+
+\subsection{Usage Example}
+\begin{lstlisting}[language=R]
+library(EFToolkit)
+
+# Load sample data
+dat <- read.csv(system.file("Albania2013.csv", package = "EFToolkit"))
+
+# Run Klimek analysis with reduced simulations for speed
+klimek <- ComputeKlimekModel(dat, 
+                            Candidates = "C050", 
+                            Level = "National",
+                            TotalReg = "Registered", 
+                            TotalVotes = "Ballots", 
+                            cores = 1, 
+                            R = 100)
+
+# Access results
+print(klimek$table)      # Data frame with results
+print(klimek$html)       # HTML formatted table
+print(klimek$tex)        # LaTeX formatted table
+\end{lstlisting}
+
+The function computes several goodness-of-fit measures:
+
+\begin{itemize}
+    \item \textbf{Winner.HFit.Klimek}: Histogram fit statistic for winning candidate
+    \item \textbf{Winner.HFit.chi2}: Chi-square histogram fit
+    \item \textbf{Winner.Fit.chi2}: Chi-square vote count fit
+    \item \textbf{Overall chi2}: Comprehensive model fit statistic
+\end{itemize}
+
+\subsection{Key Functions:}
+\begin{itemize}
+    \item \textbf{\texttt{Estimate()}}: Initial parameter estimation from vote distributions
+    \item \textbf{\texttt{Sim\_Vote()}}: Simulates electoral outcomes under fraud scenarios
+    \item \textbf{\texttt{Sim.Histo()}}: Generates histogram distributions from simulated data
+    \item \textbf{\texttt{Iteration\_sim()}}: Main optimization loop for parameter estimation
+\end{itemize}
+
+\subsection{Simulation Parameters:}
+\begin{itemize}
+    \item \textbf{f1range}: Incremental fraud proportion range (0.0 to 1.0)
+    \item \textbf{f2range}: Extreme fraud proportion range (0.0 to 0.3)  
+    \item \textbf{arange}: Fraud intensity range (0.5 to 1.0)
+    \item \textbf{iterations}: Number of optimization iterations (default: 10)
+\end{itemize}
+
+\subsection{Interpretation Guidelines}
+\begin{itemize}
+    \item \textbf{Low fraud estimates} (KSimI, KSimE near 0): Suggest clean election
+    \item \textbf{High incremental fraud}: Indicates widespread small-scale manipulation
+    \item \textbf{High extreme fraud}: Suggests concentrated large-scale fraud
+    \item \textbf{Model fit statistics}: Lower values indicate better model fit to observed data
+\end{itemize}
+
+\section{Installation}
+
+\subsection{Prerequisites}
+\begin{itemize}
+    \item R version 4.0.0 or higher
+    \item Required R packages: \texttt{dplyr}, \texttt{ggplot2}, \texttt{sf}, \texttt{spdep}, \texttt{spatialreg}, \texttt{sp}, \texttt{pracma}, \texttt{plotly}, \texttt{pbapply}, \texttt{DT}, \texttt{xtable}, \texttt{parallel}, \texttt{diptest}, \texttt{poweRlaw}, \texttt{RColorBrewer}, \texttt{maptools}, \texttt{spatstat}, \texttt{sparr}, \texttt{sparr}, \texttt{spatstat}, \texttt{spatstat.core}, \texttt{spatstat.linnet}, \texttt{spatstat.geom}, \texttt{spatstat.data}, \texttt{spatstat.utils}, \texttt{spatstat.sparse}, \texttt{spatstat}, \texttt{spatstat.core}, \texttt{spatstat.linnet}, \texttt{spatstat.geom}, \texttt{spatstat.data}, \texttt{spatstat.utils}, \texttt{spatstat.sparse}
+\end{itemize}
+
+\subsection{Installation from GitHub}
+\begin{lstlisting}[language=R]
+# Install devtools if not already installed
+if (!require(devtools)) install.packages("devtools")
+
+# Install the package
+devtools::install_github("kalinin1/EFToolkit")
+\end{lstlisting}
+
+\subsection{Installation from Source}
+\begin{lstlisting}[language=R]
+# Download the package source and install
+install.packages("path/to/EFToolkit_1.0.tar.gz", repos=NULL, type="source")
+\end{lstlisting}
+
+\section{License}
+This package is distributed under the MIT License.
+
+\section{Citation}
+When using this package in research, please cite:
+
+Kalinin, K., \& Mebane, W. (2025). Election Forensics Toolkit: Statistical Methods for Detecting Election Irregularities. R package version 1.0.
+
+\section{Contact}
+\begin{itemize}
+    \item Kirill Kalinin: \href{mailto:kalinin@umich.edu}{kalinin@umich.edu}
+    \item Walter Mebane: \href{mailto:mebane@umich.edu}{mebane@umich.edu}
+\end{itemize}
+\end{document}
