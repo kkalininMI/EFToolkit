@@ -5,6 +5,12 @@ date: "2025-09-24"
 output: html_document
 ---
 
+*Cite:*
+
+Kirill Kalinin, Walter R. Mebane, Jr. (2019, updated 2025). *EFToolkit: Election Forensics Toolkit* (Version 2.0.0) [R package]. GitHub. https://github.com/kkalininMI/EFToolkit
+
+ 
+
 # BasicElectionForensics()
 
 The `BasicElectionForensics` function is a comprehensive R tool designed to perform statistical analysis on election data to detect potential irregularities or fraud patterns. This function implements multiple forensic methods commonly used in election integrity research and provides both statistical results and significance testing through bootstrap methods.
